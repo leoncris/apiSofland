@@ -12,6 +12,8 @@ use App\Http\Controllers\Controller;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
+use Illuminate\Support\Facades\DB;
+
 class AuthController extends Controller
 {
 
@@ -24,20 +26,36 @@ class AuthController extends Controller
         ]);
 
 
-        $credentials = $request->only('email', 'password');
+           $credentials = $request->only('email', 'password');
             $user = User::where('email', $request->email)->first();
 
         try {
-            $credentials = request(['email', 'password']);
 
-           // if (! $token = auth()->attempt($credentials)) {
-            if (! $token = JWTAuth::attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-            return $this->respondWithToken($token,$user->name);
-        } catch (JWTException $e) {
-            return response()->json(['error' => 'Could not create token'], 500);
-        }
+                $user = User::where('email', $request->email)->first();
+                  // Verificar si el usuario existe
+                    if (! $user) {
+                        return response()->json(['error' => 'Usuario no encontrado'], 404);
+                    }
+                  // Verificar si tiene el rol requerido
+                       // Verificar si tiene el rol con ID 2 (tabla intermedia Spatie: model_has_roles)
+                    $hasRole = DB::table('model_has_roles')
+                        ->where('model_id', $user->id)
+                        ->where('role_id', 2)
+                        ->exists();
+
+                        if (! $hasRole) {
+                            return response()->json(['error' => 'No autorizado: rol inválido'], 403);
+                        }
+                 //   $credentials = request(['email', 'password']);
+
+                  // if (! $token = auth()->attempt($credentials)) {
+                if (! $token = JWTAuth::attempt($credentials)) {
+                        return response()->json(['error' => 'Unauthorized'], 401);
+                    }
+                        return $this->respondWithToken($token,$user->name);
+            } catch (JWTException $e) {
+                return response()->json(['error' => 'Could not create token'], 500);
+            }
     }
 
         
